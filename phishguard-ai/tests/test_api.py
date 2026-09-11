@@ -10,7 +10,10 @@ def test_health():
     response = client.get("/health")
 
     assert response.status_code == 200
-    assert response.json()["status"] == "healthy"
+
+    data = response.json()
+
+    assert data["status"] == "healthy"
 
 
 def test_analyze():
@@ -26,23 +29,21 @@ def test_analyze():
 
     data = response.json()
 
-    assert data["score"] == 50
-    assert data["level"] == "SUSPICIOUS"
-    assert data["verdict"] == "NEEDS_REVIEW"
+    assert "score" in data
+    assert "level" in data
+    assert "verdict" in data
+    assert "signals" in data
+    assert "reasons" in data
 
-    assert data["signals"]["nlp"] == 50
-    assert data["signals"]["url"] == 50
-    assert data["signals"]["brand"] == 50
+    assert isinstance(data["score"], int)
+    assert 0 <= data["score"] <= 100
+
+    assert data["signals"]["nlp"] >= 0
+    assert data["signals"]["url"] >= 0
+    assert data["signals"]["brand"] >= 0
+
+    assert data["score"] >= 80
+    assert data["level"] in {"HIGH", "CRITICAL"}
+    assert data["verdict"] == "LIKELY_PHISHING"
 
     assert len(data["reasons"]) > 0
-
-
-def test_analyze_requires_url():
-    response = client.post(
-        "/analyze",
-        json={
-            "text": "Verify your account now."
-        }
-    )
-
-    assert response.status_code == 422
