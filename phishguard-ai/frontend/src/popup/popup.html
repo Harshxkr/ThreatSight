@@ -1,17 +1,777 @@
-<!doctype html>
-<html>
+<!DOCTYPE html>
+
+<html lang="en">
+
 <head>
-  <meta charset="UTF-8">
-  <title>PhishGuard AI</title>
-  <link rel="stylesheet" href="popup.css">
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>ThreatSight</title>
+
+    <link
+        rel="stylesheet"
+        href="popup.css"
+    >
+
 </head>
+
+
 <body>
-  <main>
-    <div class="brand">🛡️ PhishGuard AI</div>
-    <h1>Real-time phishing protection</h1>
-    <p>Hover over a link on a webpage to see its risk score.</p>
-    <div class="status" id="status">Backend: checking...</div>
-  </main>
-  <script src="popup.js"></script>
+
+<div class="app">
+
+
+    <!-- =========================
+         GLOBAL HEADER
+    ========================== -->
+
+    <header class="header">
+
+        <div class="brand">
+
+            <img
+                src="../../assets/logo/logo-symbol.png"
+                alt="ThreatSight Logo"
+                class="logo"
+            >
+
+            <div class="brand-text">
+
+                <div class="brand-name">
+                    Threat<span>Sight</span>
+                </div>
+
+                <div class="brand-subtitle">
+                    AI THREAT INTELLIGENCE
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <button
+            class="menu-button"
+            aria-label="Menu"
+        >
+            •••
+        </button>
+
+    </header>
+
+
+
+    <!-- =========================
+         HOME
+    ========================== -->
+
+    <section
+        id="home-screen"
+        class="screen active"
+    >
+
+        <div class="protection-status">
+
+            <span class="status-dot"></span>
+
+            PROTECTION ACTIVE
+
+        </div>
+
+
+        <h1>
+            Analyze before<br>
+            you trust.
+        </h1>
+
+
+        <p class="intro">
+
+            AI-powered security analysis for
+            emails, messages and URLs.
+
+        </p>
+
+
+        <!-- EMAIL -->
+
+        <button
+            class="analysis-card"
+            data-type="Email"
+        >
+
+            <div class="analysis-icon email-icon">
+                ✉
+            </div>
+
+
+            <div class="analysis-content">
+
+                <strong>
+                    Analyze Email
+                </strong>
+
+                <span>
+                    Check for phishing & impersonation
+                </span>
+
+            </div>
+
+
+            <span class="card-arrow">
+                →
+            </span>
+
+        </button>
+
+
+
+        <!-- MESSAGE -->
+
+        <button
+            class="analysis-card"
+            data-type="Message"
+        >
+
+            <div class="analysis-icon message-icon">
+                •••
+            </div>
+
+
+            <div class="analysis-content">
+
+                <strong>
+                    Analyze Message
+                </strong>
+
+                <span>
+                    Detect fraud & social engineering
+                </span>
+
+            </div>
+
+
+            <span class="card-arrow">
+                →
+            </span>
+
+        </button>
+
+
+
+        <!-- URL -->
+
+        <button
+            class="analysis-card"
+            data-type="URL"
+        >
+
+            <div class="analysis-icon url-icon">
+                🔗
+            </div>
+
+
+            <div class="analysis-content">
+
+                <strong>
+                    Analyze URL
+                </strong>
+
+                <span>
+                    Scan malicious links & domains
+                </span>
+
+            </div>
+
+
+            <span class="card-arrow">
+                →
+            </span>
+
+        </button>
+
+
+        <div class="footer">
+
+            <span>AI POWERED</span>
+
+            <b>•</b>
+
+            <span>SECURE</span>
+
+            <b>•</b>
+
+            <span>ALWAYS ON</span>
+
+        </div>
+
+    </section>
+
+
+
+    <!-- =========================
+         SCANNING
+    ========================== -->
+
+    <section
+        id="scan-screen"
+        class="screen"
+    >
+
+        <button
+            class="back-button"
+            data-back="home-screen"
+        >
+            ← Back
+        </button>
+
+
+        <div class="scan-container">
+
+            <div class="scan-logo-container">
+
+                <img
+                    src="../../assets/logo/logo-symbol.png"
+                    alt="ThreatSight"
+                    class="scan-logo"
+                >
+
+            </div>
+
+
+            <div class="eyebrow">
+                SECURITY ANALYSIS
+            </div>
+
+
+            <h2 id="scan-title">
+                Analyzing URL
+            </h2>
+
+
+            <p>
+                Evaluating multiple threat signals
+                and technical indicators...
+            </p>
+
+
+            <div class="scan-checks">
+
+                <div class="scan-check complete">
+                    <span class="check-symbol">✓</span>
+                    Content structure
+                </div>
+
+
+                <div class="scan-check complete">
+                    <span class="check-symbol">✓</span>
+                    Source identity
+                </div>
+
+
+                <div class="scan-check processing">
+                    <span class="check-symbol">●</span>
+                    URL & domain intelligence
+                </div>
+
+
+                <div class="scan-check">
+                    <span class="check-symbol">○</span>
+                    Reputation analysis
+                </div>
+
+
+                <div class="scan-check">
+                    <span class="check-symbol">○</span>
+                    Finalizing analysis
+                </div>
+
+            </div>
+
+
+            <div class="security-message">
+
+                <strong>
+                    🛡 Your security is our priority.
+                </strong>
+
+                <span>
+                    This may take a few seconds.
+                </span>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+
+    <!-- =========================
+         RESULT
+    ========================== -->
+
+    <section
+        id="result-screen"
+        class="screen result-screen"
+    >
+
+        <header class="result-header">
+
+            <button
+                class="back-icon"
+                data-back="home-screen"
+            >
+                ←
+            </button>
+
+
+            <strong>
+                SECURITY ANALYSIS
+            </strong>
+
+
+            <span>
+                •••
+            </span>
+
+        </header>
+
+
+        <div class="analyzed-target">
+
+            <span id="target-type">
+                URL ANALYSIS
+            </span>
+
+            <strong id="target-value">
+                secure-login-update.example
+            </strong>
+
+        </div>
+
+
+        <div id="risk-card-container"></div>
+
+
+        <div class="recommended-action">
+
+            <div class="recommended-title">
+                ⚠ RECOMMENDED ACTION
+            </div>
+
+            <p id="recommended-text">
+                Do not click links or provide sensitive
+                information until this content is verified.
+            </p>
+
+        </div>
+
+
+        <button
+            id="report-threat"
+            class="report-button"
+        >
+            🚩 REPORT THREAT
+        </button>
+
+    </section>
+
+
+
+    <!-- =========================
+         TECHNICAL EVIDENCE
+    ========================== -->
+
+    <section
+        id="evidence-screen"
+        class="screen evidence-screen"
+    >
+
+        <header class="result-header">
+
+            <button
+                class="back-icon"
+                data-back="result-screen"
+            >
+                ←
+            </button>
+
+
+            <strong>
+                TECHNICAL EVIDENCE
+            </strong>
+
+
+            <span class="risk-header">
+                91% RISK
+            </span>
+
+        </header>
+
+
+        <div class="evidence-intro">
+
+            <div class="evidence-label">
+                SECURITY DETAILS
+            </div>
+
+            <h2>
+                Evidence behind the assessment
+            </h2>
+
+            <p>
+                Inspect the technical indicators
+                used by ThreatSight during analysis.
+            </p>
+
+        </div>
+
+
+        <!-- EMAIL AUTHENTICATION -->
+
+        <details open>
+
+            <summary>
+
+                <span>
+                    ✉ Email Authentication
+                </span>
+
+                <em>
+                    3 failures
+                </em>
+
+            </summary>
+
+
+            <div class="tech-row">
+                <span>SPF</span>
+                <b class="danger">FAIL</b>
+            </div>
+
+
+            <div class="tech-row">
+                <span>DKIM</span>
+                <b class="danger">FAIL</b>
+            </div>
+
+
+            <div class="tech-row">
+                <span>DMARC</span>
+                <b class="danger">FAIL</b>
+            </div>
+
+
+            <div class="tech-row">
+                <span>Domain alignment</span>
+                <b class="danger">FAILED</b>
+            </div>
+
+
+            <p class="tech-description">
+                Authentication failures may indicate
+                sender spoofing or unauthorized sending
+                infrastructure.
+            </p>
+
+        </details>
+
+
+
+        <!-- DOMAIN -->
+
+        <details>
+
+            <summary>
+
+                <span>
+                    ◉ Domain Intelligence
+                </span>
+
+                <em>
+                    High risk
+                </em>
+
+            </summary>
+
+
+            <div class="tech-row">
+                <span>Domain</span>
+
+                <code>
+                    secure-account-check.xyz
+                </code>
+            </div>
+
+
+            <div class="tech-row">
+                <span>Domain age</span>
+                <b>12 days</b>
+            </div>
+
+
+            <div class="tech-row">
+                <span>Reputation</span>
+                <b class="danger">LOW</b>
+            </div>
+
+
+            <div class="tech-row">
+                <span>TLS certificate</span>
+                <b class="safe">VALID</b>
+            </div>
+
+        </details>
+
+
+
+        <!-- URL -->
+
+        <details>
+
+            <summary>
+
+                <span>
+                    ↗ URL Analysis
+                </span>
+
+                <em>
+                    4 indicators
+                </em>
+
+            </summary>
+
+
+            <div class="tech-row">
+                <span>Redirect chain</span>
+                <b>3 hops</b>
+            </div>
+
+
+            <div class="tech-row">
+                <span>Obfuscation</span>
+                <b class="danger">DETECTED</b>
+            </div>
+
+
+            <div class="tech-row">
+                <span>Typosquatting</span>
+                <b class="danger">HIGH</b>
+            </div>
+
+
+            <div class="tech-row">
+                <span>Suspicious parameters</span>
+                <b class="danger">DETECTED</b>
+            </div>
+
+        </details>
+
+
+
+        <!-- CONTENT -->
+
+        <details>
+
+            <summary>
+
+                <span>
+                    ▤ Content Intelligence
+                </span>
+
+                <em>
+                    High risk
+                </em>
+
+            </summary>
+
+
+            <div class="tech-row">
+                <span>Urgency language</span>
+                <b class="danger">HIGH</b>
+            </div>
+
+
+            <div class="tech-row">
+                <span>Credential request</span>
+                <b class="danger">DETECTED</b>
+            </div>
+
+
+            <div class="tech-row">
+                <span>Financial request</span>
+                <b class="danger">DETECTED</b>
+            </div>
+
+
+            <div class="tech-row">
+                <span>Social engineering</span>
+                <b class="danger">HIGH</b>
+            </div>
+
+        </details>
+
+
+
+        <!-- BRAND -->
+
+        <details>
+
+            <summary>
+
+                <span>
+                    ⬢ Brand Verification
+                </span>
+
+                <em>
+                    Mismatch
+                </em>
+
+            </summary>
+
+
+            <div class="tech-row">
+                <span>Claimed identity</span>
+                <b>Microsoft</b>
+            </div>
+
+
+            <div class="tech-row">
+                <span>Observed domain</span>
+
+                <code>
+                    secure-account-check.xyz
+                </code>
+            </div>
+
+
+            <div class="tech-row">
+                <span>Domain similarity</span>
+                <b class="danger">87%</b>
+            </div>
+
+        </details>
+
+
+
+        <div class="calculation-box">
+
+            <strong>
+                HOW WAS THIS CALCULATED?
+            </strong>
+
+            <div>
+                Content analysis
+                <span>24%</span>
+            </div>
+
+            <div>
+                URL analysis
+                <span>21%</span>
+            </div>
+
+            <div>
+                Domain intelligence
+                <span>19%</span>
+            </div>
+
+            <div>
+                Brand verification
+                <span>17%</span>
+            </div>
+
+            <div>
+                Authentication
+                <span>10%</span>
+            </div>
+
+        </div>
+
+    </section>
+
+
+
+    <!-- =========================
+         ERROR
+    ========================== -->
+
+    <section
+        id="error-screen"
+        class="screen"
+    >
+
+        <div class="error-container">
+
+            <div class="error-icon">
+                !
+            </div>
+
+
+            <h2>
+                Analysis unavailable
+            </h2>
+
+
+            <p>
+                We couldn't analyze this content
+                right now.
+            </p>
+
+
+            <button
+                id="retry-button"
+                class="primary-button"
+            >
+                TRY AGAIN
+            </button>
+
+
+            <button
+                class="secondary-button"
+                data-back="home-screen"
+            >
+                BACK TO HOME
+            </button>
+
+        </div>
+
+    </section>
+
+
+
+    <!-- =========================
+         TOAST
+    ========================== -->
+
+    <div
+        id="toast"
+        class="toast"
+    >
+        <strong>
+            Threat report submitted!
+        </strong>
+
+        <span>
+            Thank you for helping make the internet safer.
+        </span>
+
+    </div>
+
+
+</div>
+
+
+<script
+    type="module"
+    src="popup.js"
+></script>
+
 </body>
+
 </html>
