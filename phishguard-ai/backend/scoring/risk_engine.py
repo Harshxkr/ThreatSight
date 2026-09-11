@@ -1,26 +1,65 @@
-def calculate_risk(nlp_score: int, url_score: int, brand_score: int) -> dict:
-    """
-    Combine individual security signals into one ThreatSight risk score.
-    """
+def calculate_risk(
+    nlp_result: dict,
+    url_result: dict,
+    brand_result: dict
+) -> dict:
 
-    final_score = round(
-        (nlp_score * 0.35)
-        + (url_score * 0.35)
-        + (brand_score * 0.30)
+    nlp = nlp_result.get("score", 0)
+    url = url_result.get("score", 0)
+    brand = brand_result.get("score", 0)
+
+    # ---------------------------------------------------------
+    # BASE SCORE
+    # ---------------------------------------------------------
+    # All detector scores are already on a 0-100 scale.
+    score = (
+        nlp * 0.35 +
+        url * 0.35 +
+        brand * 0.30
     )
 
-    # Keep score safely within 0–100.
-    final_score = max(0, min(100, final_score))
+    score = round(max(0, min(score, 100)))
 
-    if final_score <= 30:
+    # ---------------------------------------------------------
+    # HIGH-CONFIDENCE ESCALATION
+    # ---------------------------------------------------------
+
+    escalation_reason = None
+
+    if nlp >= 90 and brand >= 80:
+        score = max(score, 90)
+        escalation_reason = (
+            "Very strong phishing message combined with "
+            "brand impersonation"
+        )
+
+    elif nlp >= 90:
+        score = max(score, 81)
+        escalation_reason = (
+            "Very strong phishing message detected by the ML model"
+        )
+
+    elif brand >= 80 and url >= 20:
+        score = max(score, 81)
+        escalation_reason = (
+            "Brand impersonation combined with suspicious URL characteristics"
+        )
+
+    score = round(max(0, min(score, 100)))
+
+    # ---------------------------------------------------------
+    # RISK LEVEL
+    # ---------------------------------------------------------
+
+    if score <= 30:
         level = "LOW"
-        verdict = "LIKELY_SAFE"
+        verdict = "LOW_RISK"
 
-    elif final_score <= 60:
+    elif score <= 60:
         level = "SUSPICIOUS"
-        verdict = "NEEDS_REVIEW"
+        verdict = "SUSPICIOUS"
 
-    elif final_score <= 80:
+    elif score <= 80:
         level = "HIGH"
         verdict = "LIKELY_PHISHING"
 
@@ -28,8 +67,31 @@ def calculate_risk(nlp_score: int, url_score: int, brand_score: int) -> dict:
         level = "CRITICAL"
         verdict = "LIKELY_PHISHING"
 
+    # ---------------------------------------------------------
+    # REASONS / EXPLAINABILITY
+    # ---------------------------------------------------------
+
+    reasons = []
+
+    reasons.extend(brand_result.get("signals", []))
+    reasons.extend(nlp_result.get("signals", []))
+    reasons.extend(url_result.get("signals", []))
+
+    if escalation_reason:
+        reasons.append(escalation_reason)
+
+    # Remove duplicates while preserving order.
+    reasons = list(dict.fromkeys(reasons))
+
     return {
-        "score": final_score,
+        "score": score,
         "level": level,
-        "verdict": verdict
+        "verdict": verdict,
+        "signals": {
+            "nlp": round(nlp),
+            "url": round(url),
+            "brand": round(brand),
+            "page": 0
+        },
+        "reasons": reasons[:8]
     }

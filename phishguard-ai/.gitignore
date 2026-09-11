@@ -27,3 +27,6 @@ dist/
 
 # Logs
 *.log
+
+# Local ML training dataset
+data/phishing_messages.csv
