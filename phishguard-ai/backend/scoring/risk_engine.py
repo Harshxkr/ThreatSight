@@ -1,47 +1,35 @@
-def calculate_risk(nlp_result: dict, url_result: dict, brand_result: dict) -> dict:
-    nlp = nlp_result.get("score", 0.0)
-    url = url_result.get("score", 0.0)
-    brand = brand_result.get("score", 0.0)
+def calculate_risk(nlp_score: int, url_score: int, brand_score: int) -> dict:
+    """
+    Combine individual security signals into one ThreatSight risk score.
+    """
 
-    # Initial hackathon weights. Tune using validation/demo cases.
-    score = (
-        nlp * 0.35 +
-        url * 0.35 +
-        brand * 0.30
+    final_score = round(
+        (nlp_score * 0.35)
+        + (url_score * 0.35)
+        + (brand_score * 0.30)
     )
 
-    score_100 = round(score * 100)
+    # Keep score safely within 0–100.
+    final_score = max(0, min(100, final_score))
 
-    if score_100 < 30:
+    if final_score <= 30:
         level = "LOW"
-        verdict = "LOW_RISK"
-    elif score_100 < 60:
+        verdict = "LIKELY_SAFE"
+
+    elif final_score <= 60:
         level = "SUSPICIOUS"
-        verdict = "SUSPICIOUS"
-    elif score_100 < 80:
+        verdict = "NEEDS_REVIEW"
+
+    elif final_score <= 80:
         level = "HIGH"
         verdict = "LIKELY_PHISHING"
+
     else:
         level = "CRITICAL"
         verdict = "LIKELY_PHISHING"
 
-    reasons = []
-    reasons.extend(brand_result.get("signals", []))
-    reasons.extend(nlp_result.get("signals", []))
-    reasons.extend(url_result.get("signals", []))
-
-    # Remove duplicates while preserving order.
-    reasons = list(dict.fromkeys(reasons))
-
     return {
-        "score": score_100,
+        "score": final_score,
         "level": level,
-        "verdict": verdict,
-        "signals": {
-            "nlp": round(nlp * 100),
-            "url": round(url * 100),
-            "brand": round(brand * 100),
-            "page": 0
-        },
-        "reasons": reasons[:8]
+        "verdict": verdict
     }
