@@ -1,0 +1,29 @@
+body {
+  width: 300px;
+  margin: 0;
+  padding: 20px;
+  font-family: Arial, sans-serif;
+  color: #111827;
+}
+
+.brand {
+  font-weight: 800;
+  font-size: 17px;
+}
+
+h1 {
+  font-size: 20px;
+  margin: 18px 0 8px;
+}
+
+p {
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+.status {
+  margin-top: 18px;
+  padding: 10px;
+  border-radius: 8px;
+  background: #f3f4f6;
+}
