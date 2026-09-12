@@ -1,27 +1,49 @@
 {
   "manifest_version": 3,
-  "name": "PhishGuard AI",
-  "version": "0.1.0",
+  "name": "ThreatSight AI",
+  "version": "1.0.0",
   "description": "Real-time explainable phishing detection.",
+
   "permissions": [
     "activeTab",
-    "storage"
+    "storage",
+    "tabs"
   ],
+
   "host_permissions": [
     "<all_urls>"
   ],
+
   "background": {
     "service_worker": "src/background/background.js"
   },
+
   "action": {
-    "default_title": "PhishGuard AI",
+    "default_title": "ThreatSight AI",
     "default_popup": "src/popup/popup.html"
   },
+
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["src/content/content.js"],
-      "css": ["src/content/content.css"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "src/content/content.js"
+      ],
+      "css": [
+        "src/content/content.css"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://outlook.office.com/*",
+        "https://outlook.live.com/*"
+      ],
+      "js": [
+        "src/email/email.js"
+      ],
       "run_at": "document_idle"
     }
   ]

@@ -1,0 +1,90 @@
+{
+    "microsoft": {
+        "official_domains": [
+            "microsoft.com",
+            "live.com",
+            "office.com",
+            "outlook.com",
+            "office365.com"
+        ]
+    },
+
+    "google": {
+        "official_domains": [
+            "google.com",
+            "gmail.com",
+            "googleusercontent.com"
+        ]
+    },
+
+    "apple": {
+        "official_domains": [
+            "apple.com",
+            "icloud.com"
+        ]
+    },
+
+    "amazon": {
+        "official_domains": [
+            "amazon.com",
+            "amazon.in",
+            "amazon.co.uk"
+        ]
+    },
+
+    "paypal": {
+        "official_domains": [
+            "paypal.com"
+        ]
+    },
+
+    "facebook": {
+        "official_domains": [
+            "facebook.com",
+            "fb.com"
+        ]
+    },
+
+    "instagram": {
+        "official_domains": [
+            "instagram.com"
+        ]
+    },
+
+    "netflix": {
+        "official_domains": [
+            "netflix.com"
+        ]
+    },
+
+    "linkedin": {
+        "official_domains": [
+            "linkedin.com"
+        ]
+    },
+
+    "adobe": {
+        "official_domains": [
+            "adobe.com"
+        ]
+    },
+
+    "dropbox": {
+        "official_domains": [
+            "dropbox.com"
+        ]
+    },
+
+    "github": {
+        "official_domains": [
+            "github.com"
+        ]
+    },
+
+    "steam": {
+        "official_domains": [
+            "steampowered.com",
+            "steamcommunity.com"
+        ]
+    }
+}

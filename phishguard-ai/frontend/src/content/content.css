@@ -1,34 +1,198 @@
-.phishguard-card {
-  position: fixed;
-  z-index: 2147483647;
-  width: 320px;
-  padding: 16px;
-  border-radius: 14px;
-  background: #ffffff;
-  color: #111827;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 12px 40px rgba(0,0,0,.18);
-  font-family: Arial, sans-serif;
-  font-size: 14px;
+/* ==========================================
+   ThreatSight AI
+   Content Script Styles
+   Person 1 - Browser Extension
+   ========================================== */
+
+
+/* ==========================================
+   Warning Box
+   ========================================== */
+
+.threatsight-warning {
+
+    position: fixed;
+
+    top: 20px;
+    right: 20px;
+
+    width: 360px;
+
+    padding: 18px;
+
+    background: #07111f;
+
+    color: #ffffff;
+
+    border: 1px solid #ff5263;
+
+    border-radius: 14px;
+
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+    box-shadow:
+        0 10px 35px rgba(0, 0, 0, 0.45);
+
+    z-index: 2147483647;
+
+    animation:
+        threatsight-slide-in 0.25s ease-out;
 }
 
-.phishguard-card h3 {
-  margin: 0 0 8px;
-  font-size: 16px;
+
+/* ==========================================
+   Animation
+   ========================================== */
+
+@keyframes threatsight-slide-in {
+
+    from {
+
+        opacity: 0;
+
+        transform:
+            translateX(30px);
+
+    }
+
+    to {
+
+        opacity: 1;
+
+        transform:
+            translateX(0);
+
+    }
 }
 
-.phishguard-score {
-  font-size: 28px;
-  font-weight: 800;
-  margin: 8px 0;
+
+/* ==========================================
+   Warning Header
+   ========================================== */
+
+.threatsight-warning-header {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+
+    margin-bottom: 12px;
+
 }
 
-.phishguard-low { color: #15803d; }
-.phishguard-medium { color: #a16207; }
-.phishguard-high { color: #c2410c; }
-.phishguard-critical { color: #dc2626; }
 
-.phishguard-reason {
-  margin-top: 6px;
-  padding-left: 4px;
+/* Warning Icon */
+
+.threatsight-warning-icon {
+
+    font-size: 24px;
+
+}
+
+
+/* Title */
+
+.threatsight-warning-title {
+
+    font-size: 17px;
+
+    font-weight: bold;
+
+}
+
+
+/* ==========================================
+   Warning Description
+   ========================================== */
+
+.threatsight-warning-text {
+
+    color: #b9c8d8;
+
+    font-size: 12px;
+
+    line-height: 1.5;
+
+    margin-bottom: 10px;
+
+}
+
+
+/* ==========================================
+   Risk Score
+   ========================================== */
+
+.threatsight-risk-score {
+
+    font-size: 27px;
+
+    font-weight: bold;
+
+    color: #ff5263;
+
+    margin: 8px 0;
+
+}
+
+
+/* ==========================================
+   Close Button
+   ========================================== */
+
+.threatsight-close {
+
+    position: absolute;
+
+    top: 8px;
+    right: 10px;
+
+    width: 28px;
+    height: 28px;
+
+    border: none;
+
+    background: transparent;
+
+    color: #9aabba;
+
+    font-size: 20px;
+
+    cursor: pointer;
+
+}
+
+
+.threatsight-close:hover {
+
+    color: #ffffff;
+
+}
+
+
+/* ==========================================
+   Reason List
+   ========================================== */
+
+.threatsight-warning ul {
+
+    padding-left: 18px;
+
+    margin-top: 8px;
+
+}
+
+
+.threatsight-warning li {
+
+    color: #c4d0dc;
+
+    font-size: 11px;
+
+    margin-bottom: 5px;
+
 }
