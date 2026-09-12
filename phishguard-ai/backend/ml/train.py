@@ -1,181 +1,710 @@
-import pandas as pd
-import joblib
-
+import re
+import time
 from pathlib import Path
 
-from sklearn.model_selection import train_test_split
+import joblib
+import numpy as np
+import pandas as pd
+
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+from sklearn.metrics import (
+    accuracy_score,
+    classification_report,
+    confusion_matrix,
+    precision_score,
+    recall_score,
+    f1_score,
+    roc_auc_score,
+)
+from sklearn.model_selection import train_test_split
 
 
 # ============================================================
-# THREATSIGHT - NLP PHISHING DETECTOR TRAINING
+# THREATSIGHT AI
+# FINAL NLP TRAINING - V3
+#
+# Stable low-memory production model
+#
+# Word TF-IDF + Logistic Regression
+#
+# Designed for ~16 GB RAM laptops
+# ============================================================
+
+
+# ============================================================
+# PATHS
 # ============================================================
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
-DATASET_PATH = PROJECT_ROOT / "data" / "phishing_messages.csv"
+DATASET_PATH = (
+    PROJECT_ROOT.parent / "phishing_messages.csv"
+)
 
-MODEL_DIR = PROJECT_ROOT / "backend" / "ml" / "models"
+MODEL_DIR = (
+    PROJECT_ROOT
+    / "backend"
+    / "ml"
+    / "models"
+)
 
-VECTORIZER_PATH = MODEL_DIR / "tfidf_vectorizer.joblib"
-MODEL_PATH = MODEL_DIR / "phishing_model.joblib"
+MODEL_PATH = (
+    MODEL_DIR / "phishing_model.joblib"
+)
+
+VECTORIZER_PATH = (
+    MODEL_DIR / "tfidf_vectorizer.joblib"
+)
 
 
-def load_and_clean_dataset():
+# ============================================================
+# CONFIGURATION
+# ============================================================
 
-    print("=" * 60)
-    print("THREATSIGHT - NLP PHISHING DETECTOR TRAINING")
-    print("=" * 60)
+RANDOM_STATE = 42
 
-    print("\nLoading dataset:")
+TEST_SIZE = 0.20
+
+# Deliberately smaller than the previous 100k.
+# 60k gives us a strong model while reducing RAM/time.
+MAX_FEATURES = 60_000
+
+
+# ============================================================
+# TEXT NORMALIZATION
+# ============================================================
+
+def normalize_text(text):
+
+    if not isinstance(text, str):
+        return ""
+
+    text = text.lower()
+
+    # Normalize HTML breaks.
+    text = re.sub(
+        r"<br\s*/?>",
+        " ",
+        text
+    )
+
+    # Remove HTML tags.
+    text = re.sub(
+        r"<[^>]+>",
+        " ",
+        text
+    )
+
+    # Normalize URLs into a consistent representation
+    # without deleting them completely.
+    text = re.sub(
+        r"\s+",
+        " ",
+        text
+    )
+
+    return text.strip()
+
+
+# ============================================================
+# LOAD DATA
+# ============================================================
+
+def load_dataset():
+
+    print("=" * 70)
+    print("THREATSIGHT AI - FINAL NLP MODEL V3")
+    print("=" * 70)
+
+    print("\nDataset:")
     print(DATASET_PATH)
 
-    df = pd.read_csv(DATASET_PATH)
+    if not DATASET_PATH.exists():
 
-    print(f"\nOriginal rows: {len(df):,}")
+        raise FileNotFoundError(
+            f"""
+Dataset not found:
 
-    # Keep required columns
-    df = df[["body", "label"]]
+{DATASET_PATH}
 
-    # Remove missing bodies
-    df = df.dropna(subset=["body"])
+Expected:
 
-    # Convert text to string
-    df["body"] = df["body"].astype(str)
+C:\\Users\\RISHAV\\ThreatSight\\phishing_messages.csv
+"""
+        )
 
-    # Remove whitespace
-    df["body"] = df["body"].str.strip()
+    print("\nLoading dataset...")
 
+    start = time.time()
+
+    df = pd.read_csv(
+        DATASET_PATH,
+        usecols=["body", "label"]
+    )
+
+    print(
+        f"Loaded: {len(df):,} rows"
+    )
+
+    print(
+        f"Load time: "
+        f"{time.time() - start:.1f} sec"
+    )
+
+    # --------------------------------------------------------
+    # Remove missing data
+    # --------------------------------------------------------
+
+    df = df.dropna(
+        subset=["body", "label"]
+    )
+
+    # --------------------------------------------------------
+    # Convert types
+    # --------------------------------------------------------
+
+    df["body"] = (
+        df["body"]
+        .astype(str)
+    )
+
+    df["label"] = (
+        df["label"]
+        .astype(int)
+    )
+
+    # --------------------------------------------------------
+    # Normalize
+    # --------------------------------------------------------
+
+    print("\nNormalizing messages...")
+
+    start = time.time()
+
+    df["body"] = (
+        df["body"]
+        .apply(normalize_text)
+    )
+
+    print(
+        f"Normalization time: "
+        f"{time.time() - start:.1f} sec"
+    )
+
+    # --------------------------------------------------------
     # Remove empty messages
-    df = df[df["body"] != ""]
+    # --------------------------------------------------------
 
-    # Remove duplicate emails
-    df = df.drop_duplicates(subset=["body"])
+    df = df[
+        df["body"].str.len() > 0
+    ]
 
-    # Convert labels to integer
-    df["label"] = df["label"].astype(int)
+    # --------------------------------------------------------
+    # Remove duplicates
+    # --------------------------------------------------------
 
-    print(f"Clean rows: {len(df):,}")
+    before = len(df)
 
-    print("\nLabel distribution:")
-    print(df["label"].value_counts())
+    df = df.drop_duplicates(
+        subset=["body"]
+    )
+
+    duplicates = (
+        before - len(df)
+    )
+
+    # --------------------------------------------------------
+    # Validate labels
+    # --------------------------------------------------------
+
+    labels = set(
+        df["label"].unique()
+    )
+
+    if not labels.issubset({0, 1}):
+
+        raise ValueError(
+            f"Invalid labels: {labels}"
+        )
+
+    # --------------------------------------------------------
+    # Statistics
+    # --------------------------------------------------------
+
+    print("\n" + "-" * 70)
+    print("DATASET")
+    print("-" * 70)
+
+    print(
+        f"Clean messages:    {len(df):,}"
+    )
+
+    print(
+        f"Duplicates removed: {duplicates:,}"
+    )
+
+    print("\nLabels:")
+
+    print(
+        df["label"]
+        .value_counts()
+        .sort_index()
+    )
 
     return df
 
 
+# ============================================================
+# TRAIN
+# ============================================================
+
 def train_model():
 
-    # --------------------------------------------------------
-    # 1. Load and clean dataset
-    # --------------------------------------------------------
+    total_start = time.time()
 
-    df = load_and_clean_dataset()
+    # ========================================================
+    # DATA
+    # ========================================================
+
+    df = load_dataset()
 
     X = df["body"]
+
     y = df["label"]
 
-    # --------------------------------------------------------
-    # 2. Split dataset
-    # --------------------------------------------------------
+    # ========================================================
+    # TRAIN / TEST SPLIT
+    # ========================================================
 
-    print("\nSplitting dataset...")
+    print("\n" + "=" * 70)
+    print("TRAIN / TEST SPLIT")
+    print("=" * 70)
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X,
-        y,
-        test_size=0.20,
-        random_state=42,
-        stratify=y
+    X_train, X_test, y_train, y_test = (
+        train_test_split(
+            X,
+            y,
+            test_size=TEST_SIZE,
+            random_state=RANDOM_STATE,
+            stratify=y,
+        )
     )
 
-    print(f"Training samples: {len(X_train):,}")
-    print(f"Testing samples:  {len(X_test):,}")
+    print(
+        f"Training: {len(X_train):,}"
+    )
 
-    # --------------------------------------------------------
-    # 3. Convert text into TF-IDF features
-    # --------------------------------------------------------
+    print(
+        f"Testing:  {len(X_test):,}"
+    )
 
-    print("\nCreating TF-IDF features...")
+    # ========================================================
+    # TF-IDF
+    # ========================================================
+
+    print("\n" + "=" * 70)
+    print("WORD TF-IDF")
+    print("=" * 70)
+
+    print(
+        "Creating vectorizer..."
+    )
 
     vectorizer = TfidfVectorizer(
+
+        # Keep security-relevant common words.
+        stop_words=None,
+
         lowercase=True,
-        stop_words="english",
+
+        # Single words + word pairs.
         ngram_range=(1, 2),
+
+        # Ignore extremely rare terms.
         min_df=2,
-        max_df=0.95,
+
+        # Ignore almost universal terms.
+        max_df=0.98,
+
+        # Helps frequent terms.
         sublinear_tf=True,
-        max_features=100000
+
+        # Main memory/time control.
+        max_features=MAX_FEATURES,
+
+        # FLOAT32 uses approximately half the memory
+        # of the default float64 representation.
+        dtype=np.float32,
+
+        strip_accents="unicode",
     )
 
-    X_train_tfidf = vectorizer.fit_transform(X_train)
+    print(
+        f"Maximum features: "
+        f"{MAX_FEATURES:,}"
+    )
 
-    X_test_tfidf = vectorizer.transform(X_test)
+    print(
+        "Fitting TF-IDF..."
+    )
 
-    print(f"TF-IDF training matrix: {X_train_tfidf.shape}")
-    print(f"TF-IDF testing matrix:  {X_test_tfidf.shape}")
+    start = time.time()
 
-    # --------------------------------------------------------
-    # 4. Train Logistic Regression
-    # --------------------------------------------------------
+    X_train = (
+        vectorizer
+        .fit_transform(X_train)
+    )
 
-    print("\nTraining Logistic Regression model...")
+    print(
+        f"Training matrix: "
+        f"{X_train.shape}"
+    )
+
+    print(
+        f"TF-IDF training time: "
+        f"{time.time() - start:.1f} sec"
+    )
+
+    print(
+        "\nTransforming test data..."
+    )
+
+    start = time.time()
+
+    X_test = (
+        vectorizer
+        .transform(X_test)
+    )
+
+    print(
+        f"Testing matrix: "
+        f"{X_test.shape}"
+    )
+
+    print(
+        f"Test transform time: "
+        f"{time.time() - start:.1f} sec"
+    )
+
+    # ========================================================
+    # MODEL
+    # ========================================================
+
+    print("\n" + "=" * 70)
+    print("LOGISTIC REGRESSION")
+    print("=" * 70)
+
+    print(
+        "Training classifier..."
+    )
+
+    start = time.time()
 
     model = LogisticRegression(
-        max_iter=1000,
-        random_state=42
+
+        # Regularization.
+        C=2.0,
+
+        # Efficient for sparse text data.
+        solver="saga",
+
+        # Don't let training run forever.
+        max_iter=400,
+
+        tol=1e-3,
+
+        random_state=RANDOM_STATE,
+
+        class_weight=None,
+
+        # One binary phishing classifier.
+        n_jobs=-1,
     )
 
-    model.fit(X_train_tfidf, y_train)
+    model.fit(
+        X_train,
+        y_train
+    )
 
-    print("Training complete!")
+    model_time = (
+        time.time() - start
+    )
 
-    # --------------------------------------------------------
-    # 5. Evaluate model
-    # --------------------------------------------------------
+    print(
+        f"\nModel training time: "
+        f"{model_time:.1f} sec"
+    )
 
-    print("\nEvaluating model...")
+    # ========================================================
+    # PREDICTION
+    # ========================================================
 
-    y_pred = model.predict(X_test_tfidf)
+    print("\n" + "=" * 70)
+    print("EVALUATION")
+    print("=" * 70)
 
-    accuracy = accuracy_score(y_test, y_pred)
+    y_pred = model.predict(
+        X_test
+    )
 
-    print("\n" + "=" * 60)
-    print("MODEL RESULTS")
-    print("=" * 60)
+    probabilities = (
+        model.predict_proba(
+            X_test
+        )
+    )
 
-    print(f"\nAccuracy: {accuracy * 100:.2f}%")
+    phishing_probability = (
+        probabilities[:, 1]
+    )
 
-    print("\nClassification Report:")
-    print(classification_report(
+    # ========================================================
+    # METRICS
+    # ========================================================
+
+    accuracy = accuracy_score(
+        y_test,
+        y_pred
+    )
+
+    precision = precision_score(
         y_test,
         y_pred,
-        target_names=["Legitimate", "Phishing"]
-    ))
+        zero_division=0
+    )
 
-    print("\nConfusion Matrix:")
-    print(confusion_matrix(y_test, y_pred))
+    recall = recall_score(
+        y_test,
+        y_pred,
+        zero_division=0
+    )
+
+    f1 = f1_score(
+        y_test,
+        y_pred,
+        zero_division=0
+    )
+
+    roc_auc = roc_auc_score(
+        y_test,
+        phishing_probability
+    )
+
+    print("\n" + "-" * 70)
+    print("MODEL METRICS")
+    print("-" * 70)
+
+    print(
+        f"Accuracy:   {accuracy * 100:.2f}%"
+    )
+
+    print(
+        f"Precision:  {precision * 100:.2f}%"
+    )
+
+    print(
+        f"Recall:     {recall * 100:.2f}%"
+    )
+
+    print(
+        f"F1 Score:   {f1 * 100:.2f}%"
+    )
+
+    print(
+        f"ROC-AUC:    {roc_auc * 100:.2f}%"
+    )
+
+    # ========================================================
+    # CLASSIFICATION REPORT
+    # ========================================================
+
+    print("\n" + "-" * 70)
+    print("CLASSIFICATION REPORT")
+    print("-" * 70)
+
+    print(
+        classification_report(
+            y_test,
+            y_pred,
+            target_names=[
+                "Legitimate",
+                "Phishing",
+            ],
+            digits=4,
+            zero_division=0
+        )
+    )
+
+    # ========================================================
+    # CONFUSION MATRIX
+    # ========================================================
+
+    cm = confusion_matrix(
+        y_test,
+        y_pred
+    )
+
+    print("-" * 70)
+    print("CONFUSION MATRIX")
+    print("-" * 70)
+
+    print(cm)
+
+    tn, fp, fn, tp = cm.ravel()
+
+    print("\nDetailed counts:")
+
+    print(
+        f"True Negatives:  {tn:,}"
+    )
+
+    print(
+        f"False Positives: {fp:,}"
+    )
+
+    print(
+        f"False Negatives: {fn:,}"
+    )
+
+    print(
+        f"True Positives:  {tp:,}"
+    )
+
+    # ========================================================
+    # FALSE POSITIVE RATE
+    # ========================================================
+
+    if (tn + fp) > 0:
+
+        false_positive_rate = (
+            fp / (tn + fp)
+        )
+
+    else:
+
+        false_positive_rate = 0.0
+
+    print(
+        f"\nFalse Positive Rate: "
+        f"{false_positive_rate * 100:.3f}%"
+    )
+
+    # ========================================================
+    # SAVE
+    # ========================================================
+
+    print("\n" + "=" * 70)
+    print("SAVING MODEL")
+    print("=" * 70)
+
+    MODEL_DIR.mkdir(
+        parents=True,
+        exist_ok=True
+    )
 
     # --------------------------------------------------------
-    # 6. Save model
+    # IMPORTANT
+    #
+    # Save only AFTER successful evaluation.
+    #
+    # This means a crash during training does not replace
+    # the old model.
     # --------------------------------------------------------
 
-    MODEL_DIR.mkdir(parents=True, exist_ok=True)
+    print(
+        f"Saving model to:\n{MODEL_PATH}"
+    )
 
-    joblib.dump(vectorizer, VECTORIZER_PATH)
-    joblib.dump(model, MODEL_PATH)
+    joblib.dump(
+        model,
+        MODEL_PATH,
+        compress=3
+    )
 
-    print("\nModels saved successfully!")
+    print(
+        f"Saving vectorizer to:\n"
+        f"{VECTORIZER_PATH}"
+    )
 
-    print(f"\nVectorizer:")
-    print(VECTORIZER_PATH)
+    joblib.dump(
+        vectorizer,
+        VECTORIZER_PATH,
+        compress=3
+    )
 
-    print(f"\nModel:")
-    print(MODEL_PATH)
+    # ========================================================
+    # FILE SIZES
+    # ========================================================
 
-    print("\nTraining finished successfully!")
+    model_mb = (
+        MODEL_PATH.stat().st_size
+        / (1024 * 1024)
+    )
 
+    vectorizer_mb = (
+        VECTORIZER_PATH.stat().st_size
+        / (1024 * 1024)
+    )
+
+    print("\n" + "-" * 70)
+    print("FILES")
+    print("-" * 70)
+
+    print(
+        f"Model:       {model_mb:.2f} MB"
+    )
+
+    print(
+        f"Vectorizer:  {vectorizer_mb:.2f} MB"
+    )
+
+    # ========================================================
+    # FINAL
+    # ========================================================
+
+    total_time = (
+        time.time() - total_start
+    )
+
+    print("\n" + "=" * 70)
+    print("TRAINING COMPLETE")
+    print("=" * 70)
+
+    print(
+        f"\nTotal time: "
+        f"{total_time / 60:.2f} minutes"
+    )
+
+    print("\nFinal results:")
+
+    print(
+        f"Accuracy:   {accuracy * 100:.2f}%"
+    )
+
+    print(
+        f"Precision:  {precision * 100:.2f}%"
+    )
+
+    print(
+        f"Recall:     {recall * 100:.2f}%"
+    )
+
+    print(
+        f"F1:         {f1 * 100:.2f}%"
+    )
+
+    print(
+        f"ROC-AUC:    {roc_auc * 100:.2f}%"
+    )
+
+    print(
+        "\nOriginal backup remains untouched."
+    )
+
+
+# ============================================================
+# MAIN
+# ============================================================
 
 if __name__ == "__main__":
     train_model()

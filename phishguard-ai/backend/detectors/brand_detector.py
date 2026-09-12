@@ -22,6 +22,35 @@ with open(BRANDS_PATH, "r", encoding="utf-8") as file:
 
 
 # ============================================================
+# SPECIAL HOSTING DOMAINS
+# ============================================================
+#
+# These are platforms where users can create their own
+# websites/subdomains.
+#
+# Example:
+#
+#     7rocky.github.io
+#
+# contains "github", but it is NOT github.com.
+# It is a user-hosted GitHub Pages website.
+#
+# Therefore, the presence of a brand name in the subdomain
+# alone must not automatically mean impersonation.
+# ============================================================
+
+USER_HOSTING_SUFFIXES = {
+    "github.io",
+    "gitlab.io",
+    "pages.dev",
+    "vercel.app",
+    "netlify.app",
+    "web.app",
+    "firebaseapp.com",
+}
+
+
+# ============================================================
 # HELPER FUNCTIONS
 # ============================================================
 
@@ -50,7 +79,13 @@ def extract_hostname(url):
     Extract hostname from a URL.
     """
 
+    if not isinstance(url, str):
+        return ""
+
     url = url.strip()
+
+    if not url:
+        return ""
 
     # Add scheme if missing
     if not re.match(
@@ -60,6 +95,7 @@ def extract_hostname(url):
         url = "http://" + url
 
     try:
+
         parsed = urlparse(url)
 
         hostname = parsed.hostname
@@ -73,6 +109,38 @@ def extract_hostname(url):
     return ""
 
 
+def is_user_hosted_domain(hostname):
+    """
+    Determine whether a hostname belongs to a platform where
+    users can create their own subdomains/sites.
+
+    Example:
+
+        7rocky.github.io
+        example.vercel.app
+        project.pages.dev
+
+    These should not automatically be treated as brand
+    impersonation merely because the hosting platform name
+    appears in the hostname.
+    """
+
+    hostname = normalize_domain(hostname)
+
+    if not hostname:
+        return False
+
+    for suffix in USER_HOSTING_SUFFIXES:
+
+        if (
+            hostname == suffix
+            or hostname.endswith("." + suffix)
+        ):
+            return True
+
+    return False
+
+
 def domain_is_official(hostname, official_domains):
     """
     Check whether the hostname is the official domain
@@ -81,13 +149,13 @@ def domain_is_official(hostname, official_domains):
     Example:
 
         login.microsoft.com
-        → legitimate Microsoft domain
+            -> legitimate Microsoft domain
 
         microsoft.com
-        → legitimate Microsoft domain
+            -> legitimate Microsoft domain
 
         microsoft-login-security.com
-        → NOT legitimate Microsoft domain
+            -> NOT legitimate Microsoft domain
     """
 
     hostname = normalize_domain(hostname)
@@ -138,9 +206,57 @@ def detect_brand(url):
             ]
         }
 
-    # --------------------------------------------------------
-    # Check every known brand
-    # --------------------------------------------------------
+    # ========================================================
+    # USER-HOSTED DOMAIN PROTECTION
+    # ========================================================
+    #
+    # Important example:
+    #
+    #     7rocky.github.io
+    #
+    # This is hosted on GitHub Pages.
+    # The hostname contains "github", but it is not
+    # github.com and should NOT automatically receive a
+    # GitHub impersonation score.
+    #
+    # We still allow the URL detector to analyze the URL
+    # for other suspicious characteristics.
+    # ========================================================
+
+    if is_user_hosted_domain(hostname):
+
+        # Check whether the hostname itself is one of the
+        # known official domains. If it is, continue normally.
+        hosting_platform = None
+
+        for brand, information in BRANDS.items():
+
+            official_domains = information[
+                "official_domains"
+            ]
+
+            if domain_is_official(
+                hostname,
+                official_domains
+            ):
+                hosting_platform = brand
+                break
+
+        if hosting_platform is None:
+
+            return {
+                "score": 0,
+                "brand": None,
+                "impersonation": False,
+                "signals": [
+                    "User-hosted domain detected; "
+                    "brand name alone is not treated as impersonation"
+                ]
+            }
+
+    # ========================================================
+    # CHECK EVERY KNOWN BRAND
+    # ========================================================
 
     for brand, information in BRANDS.items():
 
@@ -149,13 +265,17 @@ def detect_brand(url):
         ]
 
         # ----------------------------------------------------
-        # Does the brand name appear in the hostname?
+        # Does the brand name appear as a hostname component?
         # ----------------------------------------------------
 
-        brand_pattern = re.escape(brand)
+        brand_pattern = re.escape(
+            brand.lower()
+        )
 
         if not re.search(
-            r"(^|[.-])" + brand_pattern + r"([.-]|$)",
+            r"(^|[.-])" +
+            brand_pattern +
+            r"([.-]|$)",
             hostname
         ):
             continue
@@ -236,8 +356,14 @@ def detect_brand(url):
                 "Uses a modified or hyphenated domain name"
             )
 
+        # ----------------------------------------------------
         # Maximum score
-        score = min(score, 100)
+        # ----------------------------------------------------
+
+        score = min(
+            score,
+            100
+        )
 
         return {
             "score": score,
@@ -247,7 +373,7 @@ def detect_brand(url):
         }
 
     # ========================================================
-    # No known brand detected
+    # NO KNOWN BRAND DETECTED
     # ========================================================
 
     return {
@@ -267,21 +393,33 @@ def detect_brand(url):
 if __name__ == "__main__":
 
     print("=" * 60)
-    print("THREATSIGHT - BRAND IMPERSONATION DETECTOR TEST")
+    print(
+        "THREATSIGHT - BRAND IMPERSONATION DETECTOR TEST"
+    )
     print("=" * 60)
 
     test_urls = [
 
         # ----------------------------------------------------
-        # Legitimate official domains
+        # Official domains
         # ----------------------------------------------------
 
         "https://www.microsoft.com",
         "https://login.microsoft.com",
         "https://www.google.com",
+        "https://github.com",
 
         # ----------------------------------------------------
-        # Brand impersonation
+        # User-hosted domains
+        # ----------------------------------------------------
+
+        "https://7rocky.github.io",
+        "https://example.github.io",
+        "https://myproject.vercel.app",
+        "https://example.pages.dev",
+
+        # ----------------------------------------------------
+        # Real brand impersonation
         # ----------------------------------------------------
 
         "https://microsoft-login-security.com",
@@ -307,21 +445,38 @@ if __name__ == "__main__":
     ):
 
         print("\n" + "-" * 60)
-        print(f"TEST URL {i}")
+        print(
+            f"TEST URL {i}"
+        )
         print("-" * 60)
 
         print("\nURL:")
         print(test_url)
 
-        result = detect_brand(test_url)
+        result = detect_brand(
+            test_url
+        )
 
         print("\nResult:")
-        print(f"Score:         {result['score']}/100")
-        print(f"Brand:         {result['brand']}")
-        print(f"Impersonation: {result['impersonation']}")
+        print(
+            f"Score:         "
+            f"{result['score']}/100"
+        )
+
+        print(
+            f"Brand:         "
+            f"{result['brand']}"
+        )
+
+        print(
+            f"Impersonation: "
+            f"{result['impersonation']}"
+        )
 
         print("\nSignals:")
 
         for signal in result["signals"]:
 
-            print(f"  - {signal}")
+            print(
+                f"  - {signal}"
+            )

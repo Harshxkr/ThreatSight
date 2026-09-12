@@ -41,6 +41,7 @@ URGENCY_WORDS = [
     "expired",
 ]
 
+
 CREDENTIAL_WORDS = [
     "password",
     "verify your password",
@@ -53,6 +54,7 @@ CREDENTIAL_WORDS = [
     "verification code",
     "security code",
 ]
+
 
 FINANCIAL_WORDS = [
     "payment",
@@ -67,6 +69,7 @@ FINANCIAL_WORDS = [
     "transfer",
 ]
 
+
 LINK_WORDS = [
     "click here",
     "click the link",
@@ -75,6 +78,7 @@ LINK_WORDS = [
     "open the link",
     "verify using this link",
 ]
+
 
 THREAT_WORDS = [
     "suspended",
@@ -88,20 +92,31 @@ THREAT_WORDS = [
 ]
 
 
+# ============================================================
+# HELPER
+# ============================================================
+
 def contains_any(text, keywords):
     """
     Check whether any keyword/phrase appears in the text.
     """
-    return any(keyword in text for keyword in keywords)
 
+    return any(
+        keyword in text
+        for keyword in keywords
+    )
+
+
+# ============================================================
+# SIGNAL GENERATION
+# ============================================================
 
 def generate_signals(text, score):
     """
-    Generate human-readable explanations for the prediction.
+    Generate human-readable explanations.
 
-    IMPORTANT:
-    These rules explain the prediction.
-    They do NOT change the ML score.
+    These signals explain the result.
+    They do NOT directly change the ML score.
     """
 
     signals = []
@@ -152,7 +167,7 @@ def generate_signals(text, score):
         )
 
     # --------------------------------------------------------
-    # URLs inside message
+    # URLs
     # --------------------------------------------------------
 
     url_pattern = r"https?://\S+|www\.\S+"
@@ -198,16 +213,27 @@ def analyze_text(text):
     Analyze an email/message and return phishing risk.
 
     Returns:
+
         {
             "score": 0-100,
             "label": "LEGITIMATE" or "PHISHING",
-            "risk_level": "LOW", "SUSPICIOUS", "HIGH", "CRITICAL",
+            "risk_level":
+                "LOW",
+                "SUSPICIOUS",
+                "HIGH",
+                "CRITICAL",
             "signals": [...]
         }
     """
 
+    # --------------------------------------------------------
+    # Validate input
+    # --------------------------------------------------------
+
     if not isinstance(text, str):
-        raise TypeError("text must be a string")
+        raise TypeError(
+            "text must be a string"
+        )
 
     text = text.strip()
 
@@ -220,7 +246,9 @@ def analyze_text(text):
             "score": 0,
             "label": "UNKNOWN",
             "risk_level": "UNKNOWN",
-            "signals": ["No text provided"]
+            "signals": [
+                "No text provided"
+            ]
         }
 
     # --------------------------------------------------------
@@ -229,35 +257,147 @@ def analyze_text(text):
 
     text_tfidf = vectorizer.transform([text])
 
-    # --------------------------------------------------------
-    # Get probabilities from Logistic Regression
-    #
-    # probabilities[0] = legitimate probability
-    # probabilities[1] = phishing probability
-    # --------------------------------------------------------
+    # ========================================================
+    # ML PROBABILITY
+    # ========================================================
 
     probabilities = model.predict_proba(text_tfidf)[0]
 
-    phishing_probability = probabilities[1]
+    phishing_probability = float(probabilities[1])
 
-    # Convert 0-1 probability into 0-100 score
-    score = round(phishing_probability * 100)
+    # ========================================================
+    # OUT-OF-DISTRIBUTION PROTECTION
+    # ========================================================
+
+    words = text.split()
+    word_count = len(words)
+
+    # Number of features from the input recognized by TF-IDF
+    recognized_features = text_tfidf.nnz
 
     # --------------------------------------------------------
-    # Determine model classification
+    # HIGH-RISK INTENT PATTERNS
+    # --------------------------------------------------------
+
+    high_risk_patterns = [
+
+        r"\bpassword\b",
+
+        r"\bpasscode\b",
+
+        r"\bverification code\b",
+
+        r"\botp\b",
+
+        r"\b2fa\b",
+
+        r"\bcredential",
+
+        r"\blogin\b",
+
+        r"\bsign in\b",
+
+        r"\bclick\b",
+
+        r"\breset\b.*\bpassword\b",
+
+        r"\baccount\b.*\bsuspend",
+
+        r"\baccount\b.*\bblock",
+
+        r"\bcredit card\b",
+
+        r"\bcard details\b",
+
+        r"\bpayment\b.*\bfailed\b",
+    ]
+
+    lower_text = text.lower()
+
+    has_high_risk_signal = any(
+        re.search(
+            pattern,
+            lower_text
+        )
+        for pattern in high_risk_patterns
+    )
+
+    # ========================================================
+    # CASE 1: UNKNOWN / NONSENSE INPUT
+    # ========================================================
+
+    if (
+        recognized_features == 0
+        and not has_high_risk_signal
+    ):
+        phishing_probability = 0.02
+
+    # ========================================================
+    # CASE 2: VERY SHORT ORDINARY LANGUAGE
+    # ========================================================
+
+    elif (
+        word_count <= 3
+        and not has_high_risk_signal
+    ):
+        phishing_probability = min(
+            phishing_probability,
+            0.08
+        )
+
+    # ========================================================
+    # CASE 3: NORMAL LONGER CONVERSATION
+    # ========================================================
     #
-    # 50% is the normal decision boundary for binary
-    # Logistic Regression classification.
-    # --------------------------------------------------------
+    # The ML model can still be overconfident on ordinary
+    # conversational sentences. If there are no phishing
+    # intent signals, keep the score conservative.
+    #
+    # This prevents messages such as:
+    #
+    # "I will meet you tomorrow"
+    # "Can you send me the report"
+    #
+    # from becoming false positives.
+    # ========================================================
+
+    elif (
+        word_count <= 8
+        and not has_high_risk_signal
+    ):
+        phishing_probability = min(
+            phishing_probability,
+            0.15
+        )
+
+    # ========================================================
+    # FINAL SCORE
+    # ========================================================
+
+    score = round(
+        phishing_probability * 100
+    )
+
+    score = max(
+        0,
+        min(
+            score,
+            100
+        )
+    )
+
+    # ========================================================
+    # CLASSIFICATION
+    # ========================================================
 
     if score >= 50:
         label = "PHISHING"
     else:
         label = "LEGITIMATE"
 
-    # --------------------------------------------------------
-    # Determine risk level
-    # --------------------------------------------------------
+    # ========================================================
+    # RISK LEVEL
+    # ========================================================
 
     if score <= 30:
         risk_level = "LOW"
@@ -271,20 +411,18 @@ def analyze_text(text):
     else:
         risk_level = "CRITICAL"
 
-    # --------------------------------------------------------
-    # Generate explanations
-    # --------------------------------------------------------
-
-    text_lower = text.lower()
+    # ========================================================
+    # SIGNALS
+    # ========================================================
 
     signals = generate_signals(
-        text_lower,
+        lower_text,
         score
     )
 
-    # --------------------------------------------------------
-    # Final result
-    # --------------------------------------------------------
+    # ========================================================
+    # FINAL RESULT
+    # ========================================================
 
     return {
         "score": score,
@@ -301,49 +439,221 @@ def analyze_text(text):
 if __name__ == "__main__":
 
     print("=" * 60)
-    print("THREATSIGHT - NLP PHISHING DETECTOR TEST")
+
+    print(
+        "THREATSIGHT - NLP PHISHING DETECTOR TEST"
+    )
+
     print("=" * 60)
 
     test_messages = [
 
+        # ----------------------------------------------------
         # 1. Obvious phishing
-        "URGENT! Your account will be suspended. "
-        "Click here immediately to verify your password.",
+        # ----------------------------------------------------
 
+        (
+            "URGENT! Your account will be suspended. "
+            "Click here immediately to verify your password."
+        ),
+
+        # ----------------------------------------------------
         # 2. Normal message
-        "Hi team, the meeting has been moved to 3 PM tomorrow. "
-        "Please update your calendar.",
+        # ----------------------------------------------------
 
+        (
+            "Hi team, the meeting has been moved to 3 PM tomorrow. "
+            "Please update your calendar."
+        ),
+
+        # ----------------------------------------------------
         # 3. Credential phishing
-        "Your Microsoft account requires verification. "
-        "Please login immediately and enter your password and OTP.",
+        # ----------------------------------------------------
 
+        (
+            "Your Microsoft account requires verification. "
+            "Please login immediately and enter your password and OTP."
+        ),
+
+        # ----------------------------------------------------
         # 4. Financial phishing
-        "Your payment has failed. "
-        "Please click the link below to update your credit card details.",
+        # ----------------------------------------------------
 
+        (
+            "Your payment has failed. "
+            "Please click the link below to update your credit card details."
+        ),
+
+        # ----------------------------------------------------
         # 5. Normal business message
-        "Dear team, please find the invoice attached. "
-        "We will discuss the payment during tomorrow's meeting."
+        # ----------------------------------------------------
+
+        (
+            "Dear team, please find the invoice attached. "
+            "We will discuss the payment during tomorrow's meeting."
+        ),
+
+        # ----------------------------------------------------
+        # 6. RANDOM / NONSENSE
+        # ----------------------------------------------------
+
+        "htnjvknkjd",
+
+        # ----------------------------------------------------
+        # 7. ANOTHER RANDOM STRING
+        # ----------------------------------------------------
+
+        "xjskqplmzz",
+
+        # ----------------------------------------------------
+        # 8. SHORT NORMAL MESSAGE
+        # ----------------------------------------------------
+
+        "hello",
+
+        # ----------------------------------------------------
+        # 9. SHORT NORMAL MESSAGE
+        # ----------------------------------------------------
+
+        "good morning",
+
+        # ----------------------------------------------------
+        # 10. NORMAL CONVERSATION
+        # ----------------------------------------------------
+
+        "how are you today",
+
+        # ----------------------------------------------------
+        # 11. NORMAL CONVERSATION
+        # ----------------------------------------------------
+
+        "I will meet you tomorrow",
+
+        # ----------------------------------------------------
+        # 12. NORMAL WORK MESSAGE
+        # ----------------------------------------------------
+
+        "please send me the project report",
+
+        # ----------------------------------------------------
+        # 13. SHORT SUSPICIOUS
+        # ----------------------------------------------------
+
+        "verify password",
+
+        # ----------------------------------------------------
+        # 14. SHORT SUSPICIOUS
+        # ----------------------------------------------------
+
+        "click here to verify your password",
+
+        # ----------------------------------------------------
+        # 15. NORMAL CONVERSATION
+        # ----------------------------------------------------
+
+        "Can you call me later?",
+
+        # ----------------------------------------------------
+        # 16. NORMAL CONVERSATION
+        # ----------------------------------------------------
+
+        "Let's meet for lunch tomorrow",
+
+        # ----------------------------------------------------
+        # 17. NORMAL WORK MESSAGE
+        # ----------------------------------------------------
+
+        "Please review the document when you have time",
+
+        # ----------------------------------------------------
+        # 18. PHISHING
+        # ----------------------------------------------------
+
+        "Your account is locked. Reset your password immediately.",
+
+        # ----------------------------------------------------
+        # 19. PHISHING
+        # ----------------------------------------------------
+
+        "Click here to confirm your verification code.",
+
+        # ----------------------------------------------------
+        # 20. PHISHING
+        # ----------------------------------------------------
+
+        "Your bank account has been suspended. Login to restore access.",
     ]
 
-    for i, message in enumerate(test_messages, start=1):
+    # ========================================================
+    # RUN TESTS
+    # ========================================================
 
-        print("\n" + "-" * 60)
-        print(f"TEST MESSAGE {i}")
-        print("-" * 60)
+    for i, message in enumerate(
+        test_messages,
+        start=1
+    ):
 
-        print("\nMessage:")
-        print(message)
+        print(
+            "\n" + "-" * 60
+        )
 
-        result = analyze_text(message)
+        print(
+            f"TEST MESSAGE {i}"
+        )
 
-        print("\nResult:")
-        print(f"Score:      {result['score']}/100")
-        print(f"Label:      {result['label']}")
-        print(f"Risk Level: {result['risk_level']}")
+        print(
+            "-" * 60
+        )
 
-        print("\nSignals:")
+        print(
+            "\nMessage:"
+        )
 
-        for signal in result["signals"]:
-            print(f"  - {signal}")
+        print(
+            message
+        )
+
+        try:
+
+            result = analyze_text(
+                message
+            )
+
+            print(
+                "\nResult:"
+            )
+
+            print(
+                f"Score:      "
+                f"{result['score']}/100"
+            )
+
+            print(
+                f"Label:      "
+                f"{result['label']}"
+            )
+
+            print(
+                f"Risk Level: "
+                f"{result['risk_level']}"
+            )
+
+            print(
+                "\nSignals:"
+            )
+
+            for signal in result["signals"]:
+
+                print(
+                    f"  - {signal}"
+                )
+
+        except Exception as e:
+
+            print(
+                "\nERROR:"
+            )
+
+            print(
+                str(e)
+            )

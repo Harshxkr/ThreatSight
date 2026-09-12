@@ -1,32 +1,12 @@
-# Python
-__pycache__/
-*.py[cod]
 .venv/
-venv/
+__pycache__/
+*.pyc
 .env
-
-# IDE
+*.env
 .vscode/
 .idea/
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Node
-node_modules/
-dist/
-
-# ML artifacts (uncomment if model becomes large)
-# *.pkl
-# *.joblib
-
-# Tests / cache
-.pytest_cache/
-.coverage
-
-# Logs
 *.log
-
-# Local ML training dataset
-data/phishing_messages.csv
+backend/ml/models/backup/
+backend/ml/predictor_before_calibration.py
+backend/ml/test_edge_cases.py
+../phishing_messages.csv

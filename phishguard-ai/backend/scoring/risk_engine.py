@@ -4,19 +4,29 @@ def calculate_risk(
     brand_result: dict
 ) -> dict:
 
-    nlp = nlp_result.get("score", 0)
-    url = url_result.get("score", 0)
-    brand = brand_result.get("score", 0)
+    nlp = float(nlp_result.get("score", 0) or 0)
+    url = float(url_result.get("score", 0) or 0)
+    brand = float(brand_result.get("score", 0) or 0)
+
+    has_text = nlp_result.get("label") not in {"UNKNOWN", None}
 
     # ---------------------------------------------------------
     # BASE SCORE
     # ---------------------------------------------------------
-    # All detector scores are already on a 0-100 scale.
-    score = (
-        nlp * 0.35 +
-        url * 0.35 +
-        brand * 0.30
-    )
+
+    if has_text:
+        # Normal message/page analysis.
+        score = (
+            nlp * 0.40 +
+            url * 0.35 +
+            brand * 0.25
+        )
+    else:
+        # URL-only analysis.
+        score = (
+            url * 0.60 +
+            brand * 0.40
+        )
 
     score = round(max(0, min(score, 100)))
 
@@ -26,23 +36,65 @@ def calculate_risk(
 
     escalation_reason = None
 
+    # Very strong phishing text + strong brand impersonation.
     if nlp >= 90 and brand >= 80:
-        score = max(score, 90)
+        score = max(score, 92)
         escalation_reason = (
             "Very strong phishing message combined with "
             "brand impersonation"
         )
 
+    # Very strong phishing text by itself.
     elif nlp >= 90:
-        score = max(score, 81)
+        score = max(score, 85)
         escalation_reason = (
-            "Very strong phishing message detected by the ML model"
+            "Very strong phishing message detected by "
+            "the ML model"
         )
 
-    elif brand >= 80 and url >= 20:
-        score = max(score, 81)
+    # Strong brand + genuinely suspicious URL.
+    elif brand >= 80 and url >= 40:
+        score = max(score, 80)
         escalation_reason = (
-            "Brand impersonation combined with suspicious URL characteristics"
+            "Brand impersonation combined with "
+            "strong URL risk"
+        )
+
+    # ---------------------------------------------------------
+    # IMPORTANT:
+    # Do NOT automatically force 75/85 just because a brand
+    # name appears.
+    #
+    # Example:
+    #
+    #     github.com
+    #     github.io user page
+    #
+    # A brand match by itself is not enough to call something
+    # highly dangerous.
+    # ---------------------------------------------------------
+
+    elif brand >= 80 and url >= 20:
+        score = max(score, 65)
+        escalation_reason = (
+            "Known-brand indicators combined with "
+            "suspicious URL characteristics"
+        )
+
+    # Suspicious URL can raise the score, but cannot create
+    # an artificial high score from nothing.
+    elif url >= 60:
+        score = max(score, round(url))
+
+        escalation_reason = (
+            "Strong suspicious URL characteristics detected"
+        )
+
+    elif url >= 40:
+        score = max(score, round(url))
+
+        escalation_reason = (
+            "Suspicious URL characteristics detected"
         )
 
     score = round(max(0, min(score, 100)))
@@ -73,15 +125,41 @@ def calculate_risk(
 
     reasons = []
 
-    reasons.extend(brand_result.get("signals", []))
-    reasons.extend(nlp_result.get("signals", []))
-    reasons.extend(url_result.get("signals", []))
+    neutral_signals = {
+        "No text provided",
+        "No known brand impersonation detected",
+        "No major suspicious URL characteristics detected",
+        "ML model predicts a low phishing probability"
+    }
 
-    if escalation_reason:
+    raw_signals = (
+        brand_result.get("signals", []) +
+        nlp_result.get("signals", []) +
+        url_result.get("signals", [])
+    )
+
+    for sig in raw_signals:
+
+        if (
+            sig not in neutral_signals
+            and sig not in reasons
+        ):
+            reasons.append(sig)
+
+    if (
+        escalation_reason
+        and escalation_reason not in reasons
+    ):
         reasons.append(escalation_reason)
 
-    # Remove duplicates while preserving order.
-    reasons = list(dict.fromkeys(reasons))
+    if not reasons:
+        reasons.append(
+            "No major suspicious indicators detected"
+        )
+
+    # ---------------------------------------------------------
+    # FINAL RESULT
+    # ---------------------------------------------------------
 
     return {
         "score": score,
